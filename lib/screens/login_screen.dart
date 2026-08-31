@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:heroicons/heroicons.dart';
+import '../services/mobile_companion_api.dart';
+import '../services/session_store.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/theme_scope.dart';
@@ -14,13 +16,25 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController(text: 'a.taleb');
-  final _password = TextEditingController(text: '••••••••');
+  final _storeId = TextEditingController();
+  final _username = TextEditingController();
+  final _password = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
+  bool _waitingForDesktop = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    SessionStore.storeId().then((saved) {
+      if (saved != null && mounted) _storeId.text = saved;
+    });
+  }
 
   @override
   void dispose() {
+    _storeId.dispose();
     _username.dispose();
     _password.dispose();
     super.dispose();
@@ -28,13 +42,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 700)); // simulated auth call
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
+    setState(() {
+      _loading = true;
+      _waitingForDesktop = false;
+      _error = null;
+    });
+
+    try {
+      final result = await MobileCompanionApi.login(
+        storeId: _storeId.text.trim(),
+        username: _username.text.trim(),
+        password: _password.text,
+        onWaiting: () {
+          if (mounted) setState(() => _waitingForDesktop = true);
+        },
+      );
+
+      if (!mounted) return;
+
+      if (!result.approved) {
+        setState(() {
+          _loading = false;
+          _waitingForDesktop = false;
+          _error = result.errorMessage;
+        });
+        return;
+      }
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _waitingForDesktop = false;
+        _error = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _waitingForDesktop = false;
+        _error = 'Could not reach the activation server. Check your internet connection.';
+      });
+    }
   }
 
   @override
@@ -78,6 +130,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text('Store ID', style: AppTextStyles.bodyMedium),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextFormField(
+                        controller: _storeId,
+                        style: AppTextStyles.body,
+                        decoration: const InputDecoration(
+                          hintText: 'Found in Chapter One desktop → Settings',
+                          prefixIcon: HeroIcon(HeroIcons.buildingStorefront, size: 20),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Store ID is required' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
                       Text('Username', style: AppTextStyles.bodyMedium),
                       const SizedBox(height: AppSpacing.sm),
                       TextFormField(
@@ -106,6 +170,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         validator: (v) => (v == null || v.isEmpty) ? 'Password is required' : null,
                       ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        Text(_error!, style: AppTextStyles.small(context).copyWith(color: Colors.red)),
+                      ],
                       const SizedBox(height: AppSpacing.xxl),
                       SizedBox(
                         height: 50,
@@ -120,6 +188,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               : const Text('Sign In'),
                         ),
                       ),
+                      if (_waitingForDesktop) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Center(
+                          child: Text(
+                            'Waiting for your Chapter One desktop app to approve this login…',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.small(context),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

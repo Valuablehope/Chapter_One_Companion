@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:heroicons/heroicons.dart';
-import '../data/mock_data.dart';
+import '../services/session_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_text_styles.dart';
@@ -10,14 +10,31 @@ import '../widgets/page_banner.dart';
 import '../widgets/section_header.dart';
 import 'login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Session? _session;
+
+  @override
+  void initState() {
+    super.initState();
+    SessionStore.loadSession().then((s) {
+      if (mounted) setState(() => _session = s);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final activeThemeId = ThemeScope.of(context).id;
-    final user = MockData.currentUser;
+    final fullName = _session?.fullName ?? '';
+    final username = _session?.username ?? '';
+    final role = _session?.role ?? '';
 
     return Scaffold(
       backgroundColor: colors.pageBackground,
@@ -44,7 +61,7 @@ class ProfileScreen extends StatelessWidget {
                     radius: 28,
                     backgroundColor: colors.brand500,
                     child: Text(
-                      user.fullName.substring(0, 1),
+                      fullName.isEmpty ? '?' : fullName.substring(0, 1),
                       style: AppTextStyles.h2.copyWith(color: Colors.white),
                     ),
                   ),
@@ -53,9 +70,9 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.fullName, style: AppTextStyles.h3),
+                        Text(fullName.isEmpty ? 'Loading…' : fullName, style: AppTextStyles.h3),
                         const SizedBox(height: 2),
-                        Text('@${user.username}', style: AppTextStyles.small(context)),
+                        Text('@$username', style: AppTextStyles.small(context)),
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -64,7 +81,7 @@ class ProfileScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            user.role.toUpperCase(),
+                            role.toUpperCase(),
                             style: AppTextStyles.caption.copyWith(color: colors.brand600),
                           ),
                         ),
@@ -110,10 +127,14 @@ class ProfileScreen extends StatelessWidget {
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error, width: 1.5),
                 ),
-                onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                ),
+                onPressed: () async {
+                  await SessionStore.clearSession();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
                 icon: const HeroIcon(HeroIcons.arrowRightOnRectangle, size: 18),
                 label: const Text('Sign Out'),
               ),

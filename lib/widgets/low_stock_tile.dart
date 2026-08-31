@@ -37,8 +37,10 @@ class LowStockTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.productName, style: AppTextStyles.bodyMedium),
-                const SizedBox(height: 2),
-                Text(item.sku, style: AppTextStyles.small(context)),
+                if (item.sku.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(item.sku, style: AppTextStyles.small(context)),
+                ],
               ],
             ),
           ),

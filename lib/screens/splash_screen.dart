@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../services/session_store.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/theme_scope.dart';
 import 'login_screen.dart';
+import 'main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,16 +16,26 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, _, _) => const LoginScreen(),
-          transitionsBuilder: (_, anim, _, child) => FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-      );
-    });
+    _decideNextScreen();
+  }
+
+  Future<void> _decideNextScreen() async {
+    final session = await SessionStore.loadSession();
+    // Not a real auth check -- just avoids re-prompting for a session that's
+    // obviously stale. /mobile/dashboard still enforces this server-side and
+    // bounces to login on a 401 regardless of what's cached locally.
+    final hasLikelyValidSession = session != null && !session.isExpired;
+
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) => hasLikelyValidSession ? const MainShell() : const LoginScreen(),
+        transitionsBuilder: (_, anim, _, child) => FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
   }
 
   @override
