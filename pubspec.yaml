@@ -51,6 +51,31 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Generates the platform launcher icons (Android/iOS/web/Windows/macOS) from
+# the Chapter One desktop app's own logo, so the mobile companion uses the
+# same mark on every home screen / app store listing. Run
+# `dart run flutter_launcher_icons` after changing the source image.
+flutter_launcher_icons:
+  image_path: "assets/images/logo.png"
+  android: true
+  image_path_android: "assets/images/app_icon_android.png" # pre-flattened onto navy; the source PNG's transparent corners would otherwise render as blank/invisible on Android home screens
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#0A1A2E"
+  web:
+    generate: true
+    image_path: "assets/images/app_icon_android.png"
+    background_color: "#0A1A2E"
+    theme_color: "#0A1A2E"
+  windows:
+    generate: true
+    image_path: "assets/images/app_icon_android.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/images/app_icon_android.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
